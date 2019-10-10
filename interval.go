@@ -15,11 +15,24 @@ const (
 	Closed
 )
 
+func (ept EndPointType) Opposite() EndPointType {
+	switch ept {
+	case Open:
+		return Closed
+	case Closed:
+		return Open
+	default:
+		panic("unknown EndPointType")
+	}
+}
+
 // EndPoint represents an extreme of an interval, and whether it is inclusive or exclusive (Closed or Open)
 type EndPoint struct {
 	Element time.Time
 	Type    EndPointType
 }
+
+const defaultResoltion = time.Minute
 
 // Span represents a basic span, with a start and end time.
 type Span interface {
@@ -95,6 +108,96 @@ func filter(spans Spans, filterFunc func(Span) bool) Spans {
 // IsInstant returns true if the interval is deemed instantaneous
 func IsInstant(a Span) bool {
 	return a.Start().Equal(a.End())
+}
+
+// Without returns a list of spans representing the spans of baseSpan not
+// covered by intersector.
+// It can return one Span element in Spans, if the intersector can overlap at the
+// beginning or end of baseSpan (baseSpan.Start/End is moved to intersector.End/Start) or
+// It returns two Span elements in Spans, if the intersector is within the baseSpan. this creates
+// a Span baseSpan.Start->interseector.Start and intersector.End->baseSpan.End
+func Without(baseSpan, intersector Span) Spans {
+	var residues Spans
+
+	baseStart := normalize(baseSpan.Start(), baseSpan.StartType(), baseSpan.Resolution())
+	baseEnd := normalize(baseSpan.End(), baseSpan.EndType(), baseSpan.Resolution())
+	interStart := normalize(intersector.Start(), intersector.StartType(), intersector.Resolution())
+	interEnd := normalize(intersector.End(), intersector.EndType(), intersector.Resolution())
+
+	// ----++++++----
+	// ------++------
+
+	switch {
+	case baseStart.Before(interStart) && baseEnd.After(interEnd):
+		// intersector is "in" baseSpan -> two new spans will be created
+		// ----++++++----
+		// ------++------
+		// =>
+		// ----++--++----
+		baseSpanPart1 := NewWithTypes(
+			baseSpan.Start(),
+			intersector.Start(),
+			baseSpan.StartType(),
+			intersector.StartType().Opposite(),
+			baseSpan.Resolution(),
+		)
+
+		baseSpanPart2 := NewWithTypes(
+			intersector.End(),
+			baseSpan.End(),
+			intersector.EndType().Opposite(),
+			baseSpan.EndType(),
+			baseSpan.Resolution(),
+		)
+
+		residues = append(residues, baseSpanPart1, baseSpanPart2)
+
+	case (baseStart.After(interStart) || baseStart.Equal(interStart)) && baseEnd.After(interEnd) && interEnd.After(baseStart):
+		// intersector overlaps at the begin of basespan
+		// ----++++++----
+		// ---++++-------
+		//
+		// -------+++----
+		baseSpanPart := NewWithTypes(
+			intersector.End(),
+			baseSpan.End(),
+			intersector.EndType().Opposite(),
+			baseSpan.EndType(),
+			baseSpan.Resolution(),
+		)
+
+		residues = append(residues, baseSpanPart)
+
+	case (baseEnd.Before(interEnd) || baseEnd.Equal(interEnd)) && baseStart.Before(interStart) && interStart.Before(baseEnd):
+		// intersector intersects at the end of basespan
+		// ----++++++----
+		// -------++++---
+		//
+		// ----+++-------
+		baseSpanPart := NewWithTypes(
+			baseSpan.Start(),
+			intersector.Start(),
+			baseSpan.StartType(),
+			intersector.StartType().Opposite(),
+			baseSpan.Resolution(),
+		)
+
+		residues = append(residues, baseSpanPart)
+
+	default:
+		residues = append(residues, baseSpan)
+	}
+
+	return residues
+}
+
+// Within returns if b is completly in a
+// Same instants of start or end are considered within.
+func Within(a, b Span) bool {
+	aStart, aEnd := normalizeSpan(a)
+	bStart, bEnd := normalizeSpan(b)
+
+	return (aStart.Before(bStart) || aStart.Equal(bStart)) && (aEnd.After(bEnd) || aEnd.Equal(bEnd))
 }
 
 // Returns true if two spans are side by side
@@ -318,4 +421,13 @@ func (s Spans) IntersectionBetween(b Spans) Spans {
 	return s.IntersectionBetweenWithHandler(b, func(intersectingEvent1, intersectingEvent2, intersectionSpan Span) Span {
 		return intersectionSpan
 	})
+}
+
+func (s Spans) Without(b Span) Spans {
+	var o Spans
+	for _, a := range s {
+		o = append(o, Without(a, b)...)
+	}
+
+	return o
 }
