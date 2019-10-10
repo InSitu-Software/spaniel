@@ -1,3 +1,7 @@
+# Fork
+
+this fork removes the whole endpoint logic and simplifies it.
+
 # Spaniel
 *Time span handling for Go*
 
