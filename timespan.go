@@ -2,15 +2,14 @@ package spaniel
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 )
 
 // TimeSpan represents a simple span of time, with no additional properties. It should be constructed with NewEmpty.
 type TimeSpan struct {
-	start     time.Time
-	end       time.Time
-	startType EndPointType
-	endType   EndPointType
+	start time.Time
+	end   time.Time
 }
 
 // Start returns the start time of a span
@@ -19,49 +18,19 @@ func (ts TimeSpan) Start() time.Time { return ts.start }
 // End returns the end time of a span
 func (ts TimeSpan) End() time.Time { return ts.end }
 
-// StartType returns the type of the start of the interval (Open in this case)
-func (ts TimeSpan) StartType() EndPointType { return ts.startType }
-
-// EndType returns the type of the end of the interval (Closed in this case)
-func (ts TimeSpan) EndType() EndPointType { return ts.endType }
-
-// String returns a string representation of a timespan
-func (ts TimeSpan) String() string {
-	s := ""
-	if ts.StartType() == Closed {
-		s += "["
-	} else {
-		s += "("
-	}
-
-	s += ts.Start().String()
-	if ts.Start() != ts.End() {
-		s += ","
-		s += ts.End().String()
-	}
-
-	if ts.EndType() == Closed {
-		s += "]"
-	} else {
-		s += ")"
-	}
-	return s
+func (ts TimeSpan) Duration() time.Duration {
+	return ts.end.Sub(ts.start)
 }
 
 // MarshalJSON implements json.Marshal
 func (ts TimeSpan) MarshalJSON() ([]byte, error) {
 	o := struct {
-		Start         time.Time `json:"start"`
-		End           time.Time `json:"end"`
-		StartIncluded bool      `json:"start_included"`
-		EndIncluded   bool      `json:"end_included"`
+		Start time.Time `json:"start"`
+		End   time.Time `json:"end"`
 	}{
 		Start: ts.start,
 		End:   ts.end,
 	}
-
-	o.StartIncluded = endPointInclusionMarshal(ts.startType)
-	o.EndIncluded = endPointInclusionMarshal(ts.endType)
 
 	return json.Marshal(o)
 }
@@ -69,10 +38,8 @@ func (ts TimeSpan) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON implements json.Unmarshal
 func (ts *TimeSpan) UnmarshalJSON(b []byte) (err error) {
 	var i struct {
-		Start         time.Time `json:"start"`
-		End           time.Time `json:"end"`
-		StartIncluded bool      `json:"start_included"`
-		EndIncluded   bool      `json:"end_included"`
+		Start time.Time `json:"start"`
+		End   time.Time `json:"end"`
 	}
 
 	err = json.Unmarshal(b, &i)
@@ -82,42 +49,22 @@ func (ts *TimeSpan) UnmarshalJSON(b []byte) (err error) {
 
 	ts.start = i.Start
 	ts.end = i.End
-	ts.startType = endPointInclusionUnmarhsal(i.StartIncluded)
-	ts.endType = endPointInclusionUnmarhsal(i.EndIncluded)
 
 	return
 }
 
-func endPointInclusionMarshal(e EndPointType) bool {
-	if e == Open {
-		return false
-	}
-
-	return true
-}
-
-func endPointInclusionUnmarhsal(b bool) EndPointType {
-	if b == true {
-		return Closed
-	}
-	return Open
-}
-
-// NewWithTypes creates a span with just a start and end time, and associated types, and is used when no handlers are provided to Union or Intersection.
-func NewWithTypes(start, end time.Time, startType, endType EndPointType) *TimeSpan {
-	return &TimeSpan{start, end, startType, endType}
-}
-
-// NewInstant creates a span with just a single time.
-func NewInstant(time time.Time) *TimeSpan {
-	return New(time, time)
+func (ts TimeSpan) String() string {
+	return fmt.Sprintf(
+		"%s - %s",
+		ts.Start().Format("2006-01-02 15:04"),
+		ts.End().Format("2006-01-02 15:04"),
+	)
 }
 
 // New creates a span with a start and end time, with the types set to [] for instants and [) for spans.
 func New(start time.Time, end time.Time) *TimeSpan {
-	if start.Equal(end) {
-		// An instantaneous event has to be Closed (i.e. inclusive)
-		return NewWithTypes(start, end, Closed, Closed)
+	return &TimeSpan{
+		start: start,
+		end:   end,
 	}
-	return NewWithTypes(start, end, Closed, Open)
 }

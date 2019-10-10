@@ -1,45 +1,16 @@
 package spaniel
 
 import (
+	"fmt"
 	"sort"
 	"time"
 )
 
-// EndPointType represents whether the start or end of an interval is Closed or Open.
-type EndPointType int
-
-const (
-	// Open means that the interval does not include a value
-	Open EndPointType = iota
-	// Closed means that the interval does include a value
-	Closed
-)
-
-func (ept EndPointType) Opposite() EndPointType {
-	switch ept {
-	case Open:
-		return Closed
-	case Closed:
-		return Open
-	default:
-		panic("unknown EndPointType")
-	}
-}
-
-// EndPoint represents an extreme of an interval, and whether it is inclusive or exclusive (Closed or Open)
-type EndPoint struct {
-	Element time.Time
-	Type    EndPointType
-}
-
-const defaultResoltion = time.Minute
-
 // Span represents a basic span, with a start and end time.
 type Span interface {
 	Start() time.Time
-	StartType() EndPointType
 	End() time.Time
-	EndType() EndPointType
+	String() string
 }
 
 // Spans represents a list of spans, on which other functions operate.
@@ -67,34 +38,6 @@ type UnionHandlerFunc func(mergeInto, mergeFrom, mergeSpan Span) Span
 // intersect. It is passed the two spans that intersect, and span representing the intersection.
 type IntersectionHandlerFunc func(intersectingEvent1, intersectingEvent2, intersectionSpan Span) Span
 
-func getLoosestIntervalType(x, y EndPointType) EndPointType {
-	if x > y {
-		return x
-	}
-	return y
-}
-
-func getTightestIntervalType(x, y EndPointType) EndPointType {
-	if x < y {
-		return x
-	}
-	return y
-}
-
-func getMin(a, b EndPoint) EndPoint {
-	if a.Element.Before(b.Element) {
-		return a
-	}
-	return b
-}
-
-func getMax(a, b EndPoint) EndPoint {
-	if a.Element.After(b.Element) {
-		return a
-	}
-	return b
-}
-
 func filter(spans Spans, filterFunc func(Span) bool) Spans {
 	filtered := Spans{}
 	for _, span := range spans {
@@ -103,6 +46,22 @@ func filter(spans Spans, filterFunc func(Span) bool) Spans {
 		}
 	}
 	return filtered
+}
+
+func getMax(a, b time.Time) time.Time {
+	if a.After(b) {
+		return a
+	}
+
+	return b
+}
+
+func getMin(a, b time.Time) time.Time {
+	if a.Before(b) {
+		return a
+	}
+
+	return b
 }
 
 // IsInstant returns true if the interval is deemed instantaneous
@@ -116,13 +75,13 @@ func IsInstant(a Span) bool {
 // beginning or end of baseSpan (baseSpan.Start/End is moved to intersector.End/Start) or
 // It returns two Span elements in Spans, if the intersector is within the baseSpan. this creates
 // a Span baseSpan.Start->interseector.Start and intersector.End->baseSpan.End
-func Without(baseSpan, intersector Span) Spans {
+func Without(a, b Span) Spans {
 	var residues Spans
 
-	baseStart := normalize(baseSpan.Start(), baseSpan.StartType(), baseSpan.Resolution())
-	baseEnd := normalize(baseSpan.End(), baseSpan.EndType(), baseSpan.Resolution())
-	interStart := normalize(intersector.Start(), intersector.StartType(), intersector.Resolution())
-	interEnd := normalize(intersector.End(), intersector.EndType(), intersector.Resolution())
+	baseStart := a.Start()
+	baseEnd := a.End()
+	interStart := b.Start()
+	interEnd := b.End()
 
 	// ----++++++----
 	// ------++------
@@ -130,217 +89,136 @@ func Without(baseSpan, intersector Span) Spans {
 	switch {
 	case baseStart.Before(interStart) && baseEnd.After(interEnd):
 		// intersector is "in" baseSpan -> two new spans will be created
-		// ----++++++----
-		// ------++------
+		// ----++++++---- a
+		// ------++------ b
 		// =>
 		// ----++--++----
-		baseSpanPart1 := NewWithTypes(
-			baseSpan.Start(),
-			intersector.Start(),
-			baseSpan.StartType(),
-			intersector.StartType().Opposite(),
-			baseSpan.Resolution(),
+		baseSpanPart1 := New(
+			a.Start(),
+			b.Start(),
 		)
 
-		baseSpanPart2 := NewWithTypes(
-			intersector.End(),
-			baseSpan.End(),
-			intersector.EndType().Opposite(),
-			baseSpan.EndType(),
-			baseSpan.Resolution(),
+		baseSpanPart2 := New(
+			b.End(),
+			a.End(),
 		)
 
 		residues = append(residues, baseSpanPart1, baseSpanPart2)
 
 	case (baseStart.After(interStart) || baseStart.Equal(interStart)) && baseEnd.After(interEnd) && interEnd.After(baseStart):
 		// intersector overlaps at the begin of basespan
-		// ----++++++----
-		// ---++++-------
+		// ----++++++---- a
+		// ---++++------- b
 		//
 		// -------+++----
-		baseSpanPart := NewWithTypes(
-			intersector.End(),
-			baseSpan.End(),
-			intersector.EndType().Opposite(),
-			baseSpan.EndType(),
-			baseSpan.Resolution(),
+		baseSpanPart := New(
+			b.End(),
+			a.End(),
 		)
 
 		residues = append(residues, baseSpanPart)
 
 	case (baseEnd.Before(interEnd) || baseEnd.Equal(interEnd)) && baseStart.Before(interStart) && interStart.Before(baseEnd):
 		// intersector intersects at the end of basespan
-		// ----++++++----
-		// -------++++---
+		// ----++++++---- a
+		// -------++++--- b
 		//
 		// ----+++-------
-		baseSpanPart := NewWithTypes(
-			baseSpan.Start(),
-			intersector.Start(),
-			baseSpan.StartType(),
-			intersector.StartType().Opposite(),
-			baseSpan.Resolution(),
+		baseSpanPart := New(
+			a.Start(),
+			b.Start(),
 		)
 
 		residues = append(residues, baseSpanPart)
 
+	case baseStart.Equal(interStart) && baseEnd.Equal(interEnd):
+		break
+
 	default:
-		residues = append(residues, baseSpan)
+		residues = append(residues, a)
 	}
 
 	return residues
 }
 
+type WithoutHandlerFunc func(a, b Span, diff Spans) Spans
+
+func WithoutWithHandler(a, b Span, handlerFunc WithoutHandlerFunc) Spans {
+	s := Without(a, b)
+	return handlerFunc(a, b, s)
+}
+
 // Within returns if b is completly in a
 // Same instants of start or end are considered within.
 func Within(a, b Span) bool {
-	aStart, aEnd := normalizeSpan(a)
-	bStart, bEnd := normalizeSpan(b)
-
-	return (aStart.Before(bStart) || aStart.Equal(bStart)) && (aEnd.After(bEnd) || aEnd.Equal(bEnd))
+	return ((a.Start().Before(b.Start())) || a.Start().Equal(b.Start())) &&
+		((a.End().After(b.End())) || a.End().Equal(b.End()))
 }
 
 // Returns true if two spans are side by side
 func contiguous(a, b Span) bool {
-	// [1,2,3,4] [4,5,6,7] - not contiguous
-	// [1,2,3,4) [4,5,6,7] - contiguous
-	// [1,2,3,4] (4,5,6,7] - contiguous
-	// [1,2,3,4) (4,5,6,7] - not contiguous
-	// [1,2,3] [5,6,7] - not contiguous
-	// [1] (1,2,3] - contiguous
-
-	// Two instants can't be contiguous
-	if IsInstant(a) && IsInstant(b) {
-		return false
-	}
-
-	if b.Start().Before(a.Start()) {
-		a, b = b, a
-	}
-
-	aStartType := a.StartType()
-	aEndType := a.EndType()
-	bStartType := b.StartType()
-
-	if IsInstant(a) {
-		aEndType = Closed
-		aStartType = Closed
-	}
-	if IsInstant(b) {
-		bStartType = Closed
-	}
-
-	// If a and b start at the same point, just check that their start types are different.
-	if a.Start().Equal(b.Start()) {
-		return aStartType != bStartType
-	}
-
-	// To be contiguous the ranges have to overlap on the first/last point
-	if !(a.End().Equal(b.Start())) {
-		return false
-	}
-
-	if aEndType == bStartType {
-		return false
-	}
-	return true
+	return a.End().Equal(b.Start()) || b.End().Equal(a.Start())
 }
 
 // Returns true if two spans overlap
 func overlap(a, b Span) bool {
-	// [1,2,3,4] [4,5,6,7] - intersects
-	// [1,2,3,4) [4,5,6,7] - doesn't intersect
-	// [1,2,3,4] (4,5,6,7] - doesn't intersect
-	// [1,2,3,4) (4,5,6,7] - doesn't intersect
 
-	aStartType := a.StartType()
-	aEndType := a.EndType()
-	bStartType := b.StartType()
-	bEndType := b.EndType()
-
-	if IsInstant(a) {
-		aStartType = Closed
-		aEndType = Closed
-	}
-	if IsInstant(b) {
-		bStartType = Closed
-		bEndType = Closed
-	}
-
-	// Given [a_s,a_e] and [b_s,b_e]
-	// If a_s > b_e || a_e < b_s, overlap == false
-
-	c1 := false // is a_s after b_e
-	if a.Start().After(b.End()) {
-		c1 = true
-	} else if a.Start().Equal(b.End()) {
-		c1 = (aStartType == Open || bEndType == Open)
-	}
-
-	c2 := false // is a_e before b_s
-	if a.End().Before(b.Start()) {
-		c2 = true
-	} else if a.End().Equal(b.Start()) {
-		c2 = (aEndType == Open || bStartType == Open)
-	}
-
-	if c1 || c2 {
-		return false
-	}
-
-	return true
+	return (a.Start().Before(b.Start()) && a.End().After(b.End())) ||
+		((a.Start().After(b.Start()) || a.Start().Equal(b.Start())) && a.End().After(b.End()) && b.End().After(a.Start())) ||
+		((a.End().Before(b.End()) || a.End().Equal(b.End())) && a.Start().Before(b.Start()) && b.Start().Before(a.End())) ||
+		(a.Start().Equal(b.Start()) && a.End().Equal(b.End()))
 }
 
-// UnionWithHandler returns a list of Spans representing the union of all of the spans.
-// For example, given a list [A,B] where A and B overlap, a list [C] would be returned, with the span C spanning
-// both A and B. The provided handler is passed the source and destination spans, and the currently merged empty span.
-func (s Spans) UnionWithHandler(unionHandlerFunc UnionHandlerFunc) Spans {
-
-	if len(s) < 2 {
-		return s
-	}
-
-	var sorted Spans
-	sorted = append(sorted, s...)
-	sort.Stable(ByStart(sorted))
-
-	result := Spans{sorted[0]}
-
-	for _, b := range sorted[1:] {
-		// A: current span in merged array; B: current span in sorted array
-		// If B overlaps with A, it can be merged with A.
-		a := result[len(result)-1]
-		if overlap(a, b) || contiguous(a, b) {
-
-			spanStart := getMin(EndPoint{a.Start(), a.StartType()}, EndPoint{b.Start(), b.StartType()})
-			spanEnd := getMax(EndPoint{a.End(), a.EndType()}, EndPoint{b.End(), b.EndType()})
-
-			if a.Start().Equal(b.Start()) {
-				spanStart.Type = getLoosestIntervalType(a.StartType(), b.StartType())
-			}
-			if a.End().Equal(b.End()) {
-				spanEnd.Type = getLoosestIntervalType(a.EndType(), b.EndType())
-			}
-
-			span := NewWithTypes(spanStart.Element, spanEnd.Element, spanStart.Type, spanEnd.Type)
-			result[len(result)-1] = unionHandlerFunc(a, b, span)
-
-			continue
-		}
-		result = append(result, b)
-	}
-
-	return result
-}
-
-// Union returns a list of Spans representing the union of all of the spans.
-// For example, given a list [A,B] where A and B overlap, a list [C] would be returned, with the span C spanning
-// both A and B.
-func (s Spans) Union() Spans {
-	return s.UnionWithHandler(func(mergeInto, mergeFrom, mergeSpan Span) Span {
-		return mergeSpan
-	})
-}
+// // UnionWithHandler returns a list of Spans representing the union of all of the spans.
+// // For example, given a list [A,B] where A and B overlap, a list [C] would be returned, with the span C spanning
+// // both A and B. The provided handler is passed the source and destination spans, and the currently merged empty span.
+// func (s Spans) UnionWithHandler(unionHandlerFunc UnionHandlerFunc) Spans {
+//
+// 	if len(s) < 2 {
+// 		return s
+// 	}
+//
+// 	var sorted Spans
+// 	sorted = append(sorted, s...)
+// 	sort.Stable(ByStart(sorted))
+//
+// 	result := Spans{sorted[0]}
+//
+// 	for _, b := range sorted[1:] {
+// 		// A: current span in merged array; B: current span in sorted array
+// 		// If B overlaps with A, it can be merged with A.
+// 		a := result[len(result)-1]
+// 		if overlap(a, b) || contiguous(a, b) {
+//
+// 			spanStart := getMin(EndPoint{a.Start(), a.StartType()}, EndPoint{b.Start(), b.StartType()})
+// 			spanEnd := getMax(EndPoint{a.End(), a.EndType()}, EndPoint{b.End(), b.EndType()})
+//
+// 			if a.Start().Equal(b.Start()) {
+// 				spanStart.Type = getLoosestIntervalType(a.StartType(), b.StartType())
+// 			}
+// 			if a.End().Equal(b.End()) {
+// 				spanEnd.Type = getLoosestIntervalType(a.EndType(), b.EndType())
+// 			}
+//
+// 			span := NewWithTypes(spanStart.Element, spanEnd.Element, spanStart.Type, spanEnd.Type)
+// 			result[len(result)-1] = unionHandlerFunc(a, b, span)
+//
+// 			continue
+// 		}
+// 		result = append(result, b)
+// 	}
+//
+// 	return result
+// }
+//
+// // Union returns a list of Spans representing the union of all of the spans.
+// // For example, given a list [A,B] where A and B overlap, a list [C] would be returned, with the span C spanning
+// // both A and B.
+// func (s Spans) Union() Spans {
+// 	return s.UnionWithHandler(func(mergeInto, mergeFrom, mergeSpan Span) Span {
+// 		return mergeSpan
+// 	})
+// }
 
 // IntersectionWithHandler returns a list of Spans representing the overlaps between the contained spans.
 // For example, given a list [A,B] where A and B overlap, a list [C] would be returned, with the span C covering
@@ -359,7 +237,7 @@ func (s Spans) IntersectionWithHandler(intersectHandlerFunc IntersectionHandlerF
 		// Tidy up the active span list
 		actives = filter(actives, func(t Span) bool {
 			// If this value is identical to one in actives, don't filter it.
-			if b.Start() == t.Start() && b.End() == t.End() {
+			if b.Start().Equal(t.Start()) && b.End().Equal(t.End()) {
 				return false
 			}
 			// If this value starts after the one in actives finishes, filter the active.
@@ -368,16 +246,10 @@ func (s Spans) IntersectionWithHandler(intersectHandlerFunc IntersectionHandlerF
 
 		for _, a := range actives {
 			if overlap(a, b) {
-				spanStart := getMax(EndPoint{a.Start(), a.StartType()}, EndPoint{b.Start(), b.StartType()})
-				spanEnd := getMin(EndPoint{a.End(), a.EndType()}, EndPoint{b.End(), b.EndType()})
+				spanStart := getMax(a.Start(), b.Start())
+				spanEnd := getMin(a.End(), b.End())
 
-				if a.Start().Equal(b.Start()) {
-					spanStart.Type = getTightestIntervalType(a.StartType(), b.StartType())
-				}
-				if a.End().Equal(b.End()) {
-					spanEnd.Type = getTightestIntervalType(a.EndType(), b.EndType())
-				}
-				span := NewWithTypes(spanStart.Element, spanEnd.Element, spanStart.Type, spanEnd.Type)
+				span := New(spanStart, spanEnd)
 				intersection := intersectHandlerFunc(a, b, span)
 				intersections = append(intersections, intersection)
 			}
@@ -430,4 +302,33 @@ func (s Spans) Without(b Span) Spans {
 	}
 
 	return o
+}
+
+func (s Spans) WithoutWithHandler(b Span, handlerFunc WithoutHandlerFunc) Spans {
+	var o Spans
+	for _, a := range s {
+		o = append(o, WithoutWithHandler(a, b, handlerFunc)...)
+	}
+
+	return o
+}
+
+func (s Spans) Duration() time.Duration {
+	var d time.Duration
+
+	for _, span := range s {
+		sd := span.End().Sub(span.Start())
+		d += sd
+	}
+
+	return d
+}
+
+func (s Spans) String() string {
+	var out string
+	for _, span := range s {
+		out = fmt.Sprintf("%s\n %s", out, span.String())
+	}
+
+	return out
 }
