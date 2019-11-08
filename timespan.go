@@ -53,6 +53,32 @@ func (ts *TimeSpan) UnmarshalJSON(b []byte) (err error) {
 	return
 }
 
+func (ts *TimeSpan) MarshalBinary() ([]byte, error) {
+	startBin, _ := ts.start.MarshalBinary()
+	endBin, _ := ts.end.MarshalBinary()
+
+	return append(startBin, endBin...), nil
+}
+
+func (ts *TimeSpan) UnmarshalBinary(data []byte) error {
+	if len(data) != 30 {
+		return fmt.Errorf("unknown binary format, len %d", len(data))
+	}
+
+	startBin := data[0:15]
+	endBin := data[15:]
+
+	if err := ts.start.UnmarshalBinary(startBin); err != nil {
+		return err
+	}
+
+	if err := ts.end.UnmarshalBinary(endBin); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (ts TimeSpan) String() string {
 	return fmt.Sprintf(
 		"%s - %s",
