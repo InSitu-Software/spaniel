@@ -162,11 +162,8 @@ func contiguous(a, b Span) bool {
 
 // Returns true if two spans overlap
 func overlap(a, b Span) bool {
+	return a.Start().Unix() <= b.End().Unix() && b.Start().Unix() <= a.End().Unix()
 
-	return (a.Start().Before(b.Start()) && a.End().After(b.End())) ||
-		((a.Start().After(b.Start()) || a.Start().Equal(b.Start())) && a.End().After(b.End()) && b.End().After(a.Start())) ||
-		((a.End().Before(b.End()) || a.End().Equal(b.End())) && a.Start().Before(b.Start()) && b.Start().Before(a.End())) ||
-		(a.Start().Equal(b.Start()) && a.End().Equal(b.End()))
 }
 
 // // UnionWithHandler returns a list of Spans representing the union of all of the spans.
