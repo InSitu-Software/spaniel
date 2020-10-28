@@ -1,6 +1,7 @@
 package spaniel
 
 import (
+	"fmt"
 	"testing"
 	"time"
 )
@@ -35,4 +36,24 @@ func TestOverlap(t *testing.T) {
 		t.Fail()
 	}
 
+}
+
+func TestMoreThanTwoIntersections(t *testing.T) {
+	berlin, _ := time.LoadLocation("Europe/Berlin")
+	startSpanFirst := time.Date(2020, 9, 1, 20, 0, 0, 0, berlin)
+	endSpanFirst := time.Date(2020, 9, 2, 2, 0, 0, 0, berlin)
+	firstSpan := New(startSpanFirst, endSpanFirst)
+
+	startSpanSecond := time.Date(2020, 9, 2, 0, 0, 0, 0, berlin)
+	endSpanSecond := time.Date(2020, 9, 2, 2, 0, 0, 0, berlin)
+	secondSpan := New(startSpanSecond, endSpanSecond)
+
+	startSpanThird := time.Date(2020, 9, 2, 0, 0, 0, 0, berlin)
+	endSpanThird := time.Date(2020, 9, 2, 6, 0, 0, 0, berlin)
+	thirdSpan := New(startSpanThird, endSpanThird)
+
+	spans := Spans{firstSpan, secondSpan, thirdSpan}
+
+	intersections := spans.Intersection()
+	fmt.Print(intersections)
 }
