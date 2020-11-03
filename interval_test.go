@@ -6,36 +6,116 @@ import (
 	"time"
 )
 
+var berlin, _ = time.LoadLocation("Europe/Berlin")
+
+var overlabTests = []struct {
+	description string
+	begin       time.Time
+	end         time.Time
+	begin2      time.Time
+	end2        time.Time
+	expectation bool
+}{
+	{
+		"Same start, b ends before a",
+		time.Date(2020, 9, 26, 15, 4, 5, 0, berlin),
+		time.Date(2020, 9, 26, 17, 6, 5, 0, berlin),
+		time.Date(2020, 9, 26, 15, 4, 5, 0, berlin),
+		time.Date(2020, 9, 26, 16, 6, 5, 0, berlin),
+		true,
+	},
+	{
+		"Same start, a ends before b",
+		time.Date(2020, 9, 26, 15, 4, 5, 0, berlin),
+		time.Date(2020, 9, 26, 16, 6, 5, 0, berlin),
+		time.Date(2020, 9, 26, 15, 4, 5, 0, berlin),
+		time.Date(2020, 9, 26, 17, 6, 5, 0, berlin),
+		true,
+	},
+	{
+		"Same start, same end",
+		time.Date(2020, 9, 26, 15, 4, 5, 0, berlin),
+		time.Date(2020, 9, 26, 16, 6, 5, 0, berlin),
+		time.Date(2020, 9, 26, 15, 4, 5, 0, berlin),
+		time.Date(2020, 9, 26, 16, 6, 5, 0, berlin),
+		true,
+	},
+	{
+		"a starts before b, same end",
+		time.Date(2020, 9, 26, 14, 4, 5, 0, berlin),
+		time.Date(2020, 9, 26, 16, 6, 5, 0, berlin),
+		time.Date(2020, 9, 26, 15, 4, 5, 0, berlin),
+		time.Date(2020, 9, 26, 16, 6, 5, 0, berlin),
+		true,
+	},
+	{
+		"b starts before a, same end",
+		time.Date(2020, 9, 26, 15, 4, 5, 0, berlin),
+		time.Date(2020, 9, 26, 16, 6, 5, 0, berlin),
+		time.Date(2020, 9, 26, 14, 4, 5, 0, berlin),
+		time.Date(2020, 9, 26, 16, 6, 5, 0, berlin),
+		true,
+	},
+	{
+		"different start, different end, with overlap",
+		time.Date(2020, 9, 26, 15, 4, 5, 0, berlin),
+		time.Date(2020, 9, 26, 16, 6, 5, 0, berlin),
+		time.Date(2020, 9, 26, 14, 4, 5, 0, berlin),
+		time.Date(2020, 9, 26, 16, 6, 5, 0, berlin),
+		true,
+	},
+	{
+		"a follows b directly",
+		time.Date(2020, 9, 26, 15, 4, 5, 0, berlin),
+		time.Date(2020, 9, 26, 16, 6, 5, 0, berlin),
+		time.Date(2020, 9, 26, 16, 6, 5, 0, berlin),
+		time.Date(2020, 9, 26, 17, 34, 5, 0, berlin),
+		false,
+	},
+	{
+		"Same start, same end, different day",
+		time.Date(2020, 9, 26, 15, 4, 5, 0, berlin),
+		time.Date(2020, 9, 26, 16, 6, 5, 0, berlin),
+		time.Date(2020, 9, 27, 15, 4, 5, 0, berlin),
+		time.Date(2020, 9, 27, 16, 6, 5, 0, berlin),
+		false,
+	},
+	{
+		"a follows b directly but on a different day",
+		time.Date(2020, 9, 26, 15, 4, 5, 0, berlin),
+		time.Date(2020, 9, 26, 16, 6, 5, 0, berlin),
+		time.Date(2020, 9, 27, 16, 6, 5, 0, berlin),
+		time.Date(2020, 9, 27, 17, 34, 5, 0, berlin),
+		false,
+	},
+	{
+		"Overlapping the next day",
+		time.Date(2020, 9, 26, 15, 4, 5, 0, berlin),
+		time.Date(2020, 9, 27, 8, 6, 5, 0, berlin),
+		time.Date(2020, 9, 27, 6, 4, 5, 0, berlin),
+		time.Date(2020, 9, 27, 16, 6, 5, 0, berlin),
+		true,
+	},
+	{
+		"Overlapping the same day into the next",
+		time.Date(2020, 9, 26, 15, 4, 5, 0, berlin),
+		time.Date(2020, 9, 26, 22, 6, 5, 0, berlin),
+		time.Date(2020, 9, 26, 20, 4, 5, 0, berlin),
+		time.Date(2020, 9, 27, 16, 6, 5, 0, berlin),
+		true,
+	},
+}
+
 func TestOverlap(t *testing.T) {
-	begin, _ := time.Parse("2006-01-02T15:04:05Z", "2020-09-26T02:00:00Z")
-	end1, _ := time.Parse("2006-01-02T15:04:05Z", "2020-09-26T06:00:00Z")
-	end2, _ := time.Parse("2006-01-02T15:04:05Z", "2020-09-26T06:15:00Z")
-	span1 := New(begin, end1)
-	span2 := New(begin, end2)
-	shouldOverlap := overlap(span1, span2)
-	if !shouldOverlap {
-		t.Fail()
+	for _, tt := range overlabTests {
+		t.Log(tt.description)
+		spanA := New(tt.begin, tt.end)
+		spanB := New(tt.begin2, tt.end2)
+		hasOverlap := overlap(spanA, spanB)
+		if tt.expectation != hasOverlap {
+			t.Fail()
+		}
 	}
-	shouldOverlap = overlap(span2, span1)
-	if !shouldOverlap {
-		t.Fail()
-	}
-	beginNotOverlap1, _ := time.Parse("2006-01-02T15:04:05Z", "2020-09-26T02:00:00Z")
-	endNotOverlap1, _ := time.Parse("2006-01-02T15:04:05Z", "2020-09-26T06:00:00Z")
-	beginNotOverlap2, _ := time.Parse("2006-01-02T15:04:05Z", "2020-09-26T06:01:00Z")
-	endNotOverlap2, _ := time.Parse("2006-01-02T15:04:05Z", "2020-09-26T20:00:00Z")
-	spanNotOverlap1 := New(beginNotOverlap1, endNotOverlap1)
-	spanNotOverlap2 := New(beginNotOverlap2, endNotOverlap2)
-
-	shouldNotOverlap := overlap(spanNotOverlap1, spanNotOverlap2)
-	if shouldNotOverlap {
-		t.Fail()
-	}
-	shouldNotOverlap = overlap(spanNotOverlap2, spanNotOverlap1)
-	if shouldNotOverlap {
-		t.Fail()
-	}
-
 }
 
 func TestMoreThanTwoIntersections(t *testing.T) {
