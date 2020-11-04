@@ -391,3 +391,39 @@ func TestIntersections(t *testing.T) {
 		}
 	}
 }
+
+var withoutTests = []struct {
+	description string
+	spans       Spans
+	exclude     Span
+	expected    Spans
+}{
+	{
+		"one span without overlapping span",
+		Spans{
+			New(
+				time.Date(2020, 9, 26, 10, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 15, 13, 5, 0, berlin),
+			),
+		},
+		New(
+			time.Date(2020, 9, 26, 13, 6, 5, 0, berlin),
+			time.Date(2020, 9, 26, 15, 13, 5, 0, berlin),
+		),
+		Spans{
+			New(
+				time.Date(2020, 9, 26, 10, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 13, 6, 5, 0, berlin),
+			),
+		},
+	},
+}
+
+func TestWithout(t *testing.T) {
+	for _, tt := range withoutTests {
+		t.Log(tt.description)
+		if !reflect.DeepEqual(tt.spans.Without(tt.exclude), tt.expected) {
+			t.Fail()
+		}
+	}
+}
