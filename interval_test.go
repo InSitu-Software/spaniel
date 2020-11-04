@@ -1,14 +1,14 @@
 package spaniel
 
 import (
-	"fmt"
+	"reflect"
 	"testing"
 	"time"
 )
 
 var berlin, _ = time.LoadLocation("Europe/Berlin")
 
-var overlabTests = []struct {
+var overlapTests = []struct {
 	description string
 	begin       time.Time
 	end         time.Time
@@ -107,7 +107,7 @@ var overlabTests = []struct {
 }
 
 func TestOverlap(t *testing.T) {
-	for _, tt := range overlabTests {
+	for _, tt := range overlapTests {
 		t.Log(tt.description)
 		spanA := New(tt.begin, tt.end)
 		spanB := New(tt.begin2, tt.end2)
@@ -118,22 +118,32 @@ func TestOverlap(t *testing.T) {
 	}
 }
 
+var intersectionTests = []struct {
+	description   string
+	spans         Spans
+	intersections Spans
+}{
+	{
+		"two spans, no intersection",
+		Spans{
+			New(
+				time.Date(2020, 9, 26, 15, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 19, 13, 5, 0, berlin),
+			),
+			New(
+				time.Date(2020, 9, 26, 20, 45, 5, 0, berlin),
+				time.Date(2020, 9, 26, 23, 6, 5, 0, berlin),
+			),
+		},
+		Spans{},
+	},
+}
+
 func TestMoreThanTwoIntersections(t *testing.T) {
-	berlin, _ := time.LoadLocation("Europe/Berlin")
-	startSpanFirst := time.Date(2020, 9, 1, 20, 0, 0, 0, berlin)
-	endSpanFirst := time.Date(2020, 9, 2, 2, 0, 0, 0, berlin)
-	firstSpan := New(startSpanFirst, endSpanFirst)
-
-	startSpanSecond := time.Date(2020, 9, 2, 0, 0, 0, 0, berlin)
-	endSpanSecond := time.Date(2020, 9, 2, 2, 0, 0, 0, berlin)
-	secondSpan := New(startSpanSecond, endSpanSecond)
-
-	startSpanThird := time.Date(2020, 9, 2, 0, 0, 0, 0, berlin)
-	endSpanThird := time.Date(2020, 9, 2, 6, 0, 0, 0, berlin)
-	thirdSpan := New(startSpanThird, endSpanThird)
-
-	spans := Spans{firstSpan, secondSpan, thirdSpan}
-
-	intersections := spans.Intersection()
-	fmt.Print(intersections)
+	for _, tt := range intersectionTests {
+		t.Log(tt.description)
+		if !reflect.DeepEqual(tt.intersections, tt.spans.Intersection()) {
+			t.Fail()
+		}
+	}
 }
