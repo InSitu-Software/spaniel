@@ -76,13 +76,14 @@ func IsInstant(a Span) bool {
 // It returns two Span elements in Spans, if the intersector is within the baseSpan. this creates
 // a Span baseSpan.Start->interseector.Start and intersector.End->baseSpan.End
 func Without(a, b Span) Spans {
-	var residues Spans
+	residues := Spans{}
 
 	baseStart := a.Start()
 	baseEnd := a.End()
 	interStart := b.Start()
 	interEnd := b.End()
-
+	{
+	}
 	// ----++++++----
 	// ------++------
 
@@ -132,6 +133,7 @@ func Without(a, b Span) Spans {
 		residues = append(residues, baseSpanPart)
 
 	case baseStart.Equal(interStart) && baseEnd.Equal(interEnd):
+		// if basespan and intersection match, return empty Spans
 		break
 
 	case !interStart.After(baseStart) && !interEnd.Before(baseEnd):
@@ -294,8 +296,9 @@ func (s Spans) IntersectionBetween(b Spans) Spans {
 	})
 }
 
+//Without removes the given Span from the Spans
 func (s Spans) Without(b Span) Spans {
-	var o Spans
+	var o = Spans{}
 	for _, a := range s {
 		o = append(o, Without(a, b)...)
 	}
