@@ -134,6 +134,9 @@ func Without(a, b Span) Spans {
 	case baseStart.Equal(interStart) && baseEnd.Equal(interEnd):
 		break
 
+	case !interStart.After(baseStart) && !interEnd.Before(baseEnd):
+		// if intersection engulfs the basespan, return empty Spans
+		break
 	default:
 		residues = append(residues, a)
 	}
