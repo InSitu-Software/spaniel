@@ -399,7 +399,7 @@ var withoutTests = []struct {
 	expected    Spans
 }{
 	{
-		"one span without overlapping span",
+		"one span overlapping end",
 		Spans{
 			New(
 				time.Date(2020, 9, 26, 10, 4, 5, 0, berlin),
@@ -417,12 +417,213 @@ var withoutTests = []struct {
 			),
 		},
 	},
+	{
+		"one span overlapping start",
+		Spans{
+			New(
+				time.Date(2020, 9, 26, 10, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 15, 13, 5, 0, berlin),
+			),
+		},
+		New(
+			time.Date(2020, 9, 26, 8, 6, 5, 0, berlin),
+			time.Date(2020, 9, 26, 12, 13, 5, 0, berlin),
+		),
+		Spans{
+			New(
+				time.Date(2020, 9, 26, 12, 13, 5, 0, berlin),
+				time.Date(2020, 9, 26, 15, 13, 5, 0, berlin),
+			),
+		},
+	},
+	{
+		"one span no overlapping span = a",
+		Spans{
+			New(
+				time.Date(2020, 9, 26, 9, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 12, 13, 5, 0, berlin),
+			),
+		},
+		New(
+			time.Date(2020, 9, 26, 13, 6, 5, 0, berlin),
+			time.Date(2020, 9, 26, 15, 13, 5, 0, berlin),
+		),
+		Spans{
+			New(
+				time.Date(2020, 9, 26, 9, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 12, 13, 5, 0, berlin),
+			),
+		},
+	},
+	{
+		"one span complete overlap = nil",
+		Spans{
+			New(
+				time.Date(2020, 9, 26, 9, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 12, 13, 5, 0, berlin),
+			),
+		},
+		New(
+			time.Date(2020, 9, 26, 8, 6, 5, 0, berlin),
+			time.Date(2020, 9, 26, 15, 13, 5, 0, berlin),
+		),
+		Spans{},
+	},
+	{
+		"one span punch hole",
+		Spans{
+			New(
+				time.Date(2020, 9, 26, 9, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 12, 13, 5, 0, berlin),
+			),
+		},
+		New(
+			time.Date(2020, 9, 26, 10, 6, 5, 0, berlin),
+			time.Date(2020, 9, 26, 11, 13, 5, 0, berlin),
+		),
+		Spans{
+			New(
+				time.Date(2020, 9, 26, 9, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 10, 6, 5, 0, berlin),
+			),
+			New(
+				time.Date(2020, 9, 26, 11, 13, 5, 0, berlin),
+				time.Date(2020, 9, 26, 12, 13, 5, 0, berlin),
+			),
+		},
+	},
+	{
+		"one span contiguous span = a",
+		Spans{
+			New(
+				time.Date(2020, 9, 26, 9, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 12, 13, 5, 0, berlin),
+			),
+		},
+		New(
+			time.Date(2020, 9, 26, 12, 13, 5, 0, berlin),
+			time.Date(2020, 9, 26, 15, 13, 5, 0, berlin),
+		),
+		Spans{
+			New(
+				time.Date(2020, 9, 26, 9, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 12, 13, 5, 0, berlin),
+			),
+		},
+	},
+	{
+		"two spans minus one overlapping both = two spans",
+		Spans{
+			New(
+				time.Date(2020, 9, 26, 9, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 12, 13, 5, 0, berlin),
+			),
+			New(
+				time.Date(2020, 9, 26, 14, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 15, 13, 5, 0, berlin),
+			),
+		},
+		New(
+			time.Date(2020, 9, 26, 11, 13, 5, 0, berlin),
+			time.Date(2020, 9, 26, 14, 30, 5, 0, berlin),
+		),
+		Spans{
+			New(
+				time.Date(2020, 9, 26, 9, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 11, 13, 5, 0, berlin),
+			),
+			New(
+				time.Date(2020, 9, 26, 14, 30, 5, 0, berlin),
+				time.Date(2020, 9, 26, 15, 13, 5, 0, berlin),
+			),
+		},
+	},
+	{
+		"two spans minus one cutting the first in two = three spans",
+		Spans{
+			New(
+				time.Date(2020, 9, 26, 9, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 12, 13, 5, 0, berlin),
+			),
+			New(
+				time.Date(2020, 9, 26, 14, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 15, 13, 5, 0, berlin),
+			),
+		},
+		New(
+			time.Date(2020, 9, 26, 10, 0, 38, 0, berlin),
+			time.Date(2020, 9, 26, 11, 30, 0, 0, berlin),
+		),
+		Spans{
+			New(
+				time.Date(2020, 9, 26, 9, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 10, 0, 38, 0, berlin),
+			),
+			New(
+				time.Date(2020, 9, 26, 11, 30, 0, 0, berlin),
+				time.Date(2020, 9, 26, 12, 13, 5, 0, berlin),
+			),
+			New(
+				time.Date(2020, 9, 26, 14, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 15, 13, 5, 0, berlin),
+			),
+		},
+	},
+	{
+		"four spans minus one wrecking havoc",
+		Spans{
+			New(
+				time.Date(2020, 9, 26, 9, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 12, 13, 5, 0, berlin),
+			),
+			New(
+				time.Date(2020, 9, 26, 14, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 15, 13, 5, 0, berlin),
+			),
+			New(
+				time.Date(2020, 9, 26, 8, 0, 7, 0, berlin),
+				time.Date(2020, 9, 26, 13, 33, 38, 0, berlin),
+			),
+			New(
+				time.Date(2020, 9, 26, 14, 1, 27, 0, berlin),
+				time.Date(2020, 9, 26, 14, 30, 38, 0, berlin),
+			),
+		},
+		New(
+			time.Date(2020, 9, 26, 10, 0, 38, 0, berlin),
+			time.Date(2020, 9, 26, 13, 27, 0, 0, berlin),
+		),
+		Spans{
+			New(
+				time.Date(2020, 9, 26, 9, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 10, 0, 38, 0, berlin),
+			),
+			New(
+				time.Date(2020, 9, 26, 14, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 15, 13, 5, 0, berlin),
+			),
+			New(
+				time.Date(2020, 9, 26, 8, 0, 7, 0, berlin),
+				time.Date(2020, 9, 26, 10, 0, 38, 0, berlin),
+			),
+			New(
+				time.Date(2020, 9, 26, 13, 27, 0, 0, berlin),
+				time.Date(2020, 9, 26, 13, 33, 38, 0, berlin),
+			),
+			New(
+				time.Date(2020, 9, 26, 14, 1, 27, 0, berlin),
+				time.Date(2020, 9, 26, 14, 30, 38, 0, berlin),
+			),
+		},
+	},
 }
 
 func TestWithout(t *testing.T) {
 	for _, tt := range withoutTests {
 		t.Log(tt.description)
-		if !reflect.DeepEqual(tt.spans.Without(tt.exclude), tt.expected) {
+		result := tt.spans.Without(tt.exclude)
+		if !reflect.DeepEqual(result, tt.expected) {
+			t.Error("Expected ", tt.expected, "\nReceived ", result)
 			t.Fail()
 		}
 	}
