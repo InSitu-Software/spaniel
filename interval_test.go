@@ -137,9 +137,253 @@ var intersectionTests = []struct {
 		},
 		Spans{},
 	},
+	{
+		"two spans, b starts before a ends = b.Start -> a.End",
+		Spans{
+			New(
+				time.Date(2020, 9, 26, 15, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 19, 13, 5, 0, berlin),
+			),
+			New(
+				time.Date(2020, 9, 26, 18, 45, 5, 0, berlin),
+				time.Date(2020, 9, 26, 23, 6, 5, 0, berlin),
+			),
+		},
+		Spans{
+			New(
+				time.Date(2020, 9, 26, 18, 45, 5, 0, berlin),
+				time.Date(2020, 9, 26, 19, 13, 5, 0, berlin),
+			),
+		},
+	},
+	{
+		"two spans, a starts before b ends = a.Start-> b.Ends",
+		Spans{
+			New(
+				time.Date(2020, 9, 26, 18, 45, 5, 0, berlin),
+				time.Date(2020, 9, 26, 23, 6, 5, 0, berlin),
+			),
+			New(
+				time.Date(2020, 9, 26, 15, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 19, 13, 5, 0, berlin),
+			),
+		},
+		Spans{
+			New(
+				time.Date(2020, 9, 26, 18, 45, 5, 0, berlin),
+				time.Date(2020, 9, 26, 19, 13, 5, 0, berlin),
+			),
+		},
+	},
+	{
+		"two spans, a engulfs b completely = b",
+		Spans{
+			New(
+				time.Date(2020, 9, 26, 16, 45, 5, 0, berlin),
+				time.Date(2020, 9, 26, 23, 6, 5, 0, berlin),
+			),
+			New(
+				time.Date(2020, 9, 26, 17, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 19, 13, 5, 0, berlin),
+			),
+		},
+		Spans{
+			New(
+				time.Date(2020, 9, 26, 17, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 19, 13, 5, 0, berlin),
+			),
+		},
+	},
+	{
+		"two spans, b engulfs a completely = b",
+		Spans{
+			New(
+				time.Date(2020, 9, 26, 17, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 19, 13, 5, 0, berlin),
+			),
+			New(
+				time.Date(2020, 9, 26, 16, 45, 5, 0, berlin),
+				time.Date(2020, 9, 26, 23, 6, 5, 0, berlin),
+			),
+		},
+		Spans{
+			New(
+				time.Date(2020, 9, 26, 17, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 19, 13, 5, 0, berlin),
+			),
+		},
+	},
+	{
+		"two spans, b equals a = b",
+		Spans{
+			New(
+				time.Date(2020, 9, 26, 17, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 19, 13, 5, 0, berlin),
+			),
+			New(
+				time.Date(2020, 9, 26, 17, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 19, 13, 5, 0, berlin),
+			),
+		},
+		Spans{
+			New(
+				time.Date(2020, 9, 26, 17, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 19, 13, 5, 0, berlin),
+			),
+		},
+	},
+	{
+		"two spans, b equals a = b",
+		Spans{
+			New(
+				time.Date(2020, 9, 26, 17, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 19, 13, 5, 0, berlin),
+			),
+			New(
+				time.Date(2020, 9, 26, 17, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 19, 13, 5, 0, berlin),
+			),
+		},
+		Spans{
+			New(
+				time.Date(2020, 9, 26, 17, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 19, 13, 5, 0, berlin),
+			),
+		},
+	},
+	{
+		"three spans, all three disjunctive = empty",
+		Spans{
+			New(
+				time.Date(2020, 9, 26, 10, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 12, 13, 5, 0, berlin),
+			),
+			New(
+				time.Date(2020, 9, 26, 14, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 16, 13, 5, 0, berlin),
+			),
+			New(
+				time.Date(2020, 9, 26, 18, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 20, 13, 5, 0, berlin),
+			),
+		},
+		Spans{},
+	},
+	{
+		"three spans, a intersects with c",
+		Spans{
+			New(
+				time.Date(2020, 9, 26, 10, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 12, 13, 5, 0, berlin),
+			),
+			New(
+				time.Date(2020, 9, 26, 14, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 16, 13, 5, 0, berlin),
+			),
+			New(
+				time.Date(2020, 9, 26, 11, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 13, 13, 5, 0, berlin),
+			),
+		},
+		Spans{
+			New(
+				time.Date(2020, 9, 26, 11, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 12, 13, 5, 0, berlin),
+			),
+		},
+	},
+	{
+		"three spans, a intersects with b, b with c",
+		Spans{
+			New(
+				time.Date(2020, 9, 26, 10, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 12, 13, 5, 0, berlin),
+			),
+			New(
+				time.Date(2020, 9, 26, 11, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 14, 13, 5, 0, berlin),
+			),
+			New(
+				time.Date(2020, 9, 26, 13, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 15, 13, 5, 0, berlin),
+			),
+		},
+		Spans{
+			New(
+				time.Date(2020, 9, 26, 11, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 12, 13, 5, 0, berlin),
+			),
+			New(
+				time.Date(2020, 9, 26, 13, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 14, 13, 5, 0, berlin),
+			),
+		},
+	},
+	{
+		"three spans, a intersects with b and c, b with c",
+		Spans{
+			New(
+				time.Date(2020, 9, 26, 10, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 14, 13, 5, 0, berlin),
+			),
+			New(
+				time.Date(2020, 9, 26, 11, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 15, 13, 5, 0, berlin),
+			),
+			New(
+				time.Date(2020, 9, 26, 14, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 16, 13, 5, 0, berlin),
+			),
+		},
+		Spans{
+			New(
+				time.Date(2020, 9, 26, 11, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 14, 13, 5, 0, berlin),
+			),
+			New(
+				time.Date(2020, 9, 26, 14, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 14, 13, 5, 0, berlin),
+			),
+			New(
+				time.Date(2020, 9, 26, 14, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 15, 13, 5, 0, berlin),
+			),
+		},
+	},
+	{
+		"three spans, a engulfs b and intersects with c",
+		Spans{
+			New(
+				time.Date(2020, 9, 26, 10, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 15, 13, 5, 0, berlin),
+			),
+			New(
+				time.Date(2020, 9, 26, 11, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 14, 7, 5, 0, berlin),
+			),
+			New(
+				time.Date(2020, 9, 26, 14, 0, 5, 0, berlin),
+				time.Date(2020, 9, 26, 16, 13, 5, 0, berlin),
+			),
+		},
+		Spans{
+			New(
+				time.Date(2020, 9, 26, 11, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 14, 7, 5, 0, berlin),
+			),
+			New(
+				time.Date(2020, 9, 26, 14, 0, 5, 0, berlin),
+				time.Date(2020, 9, 26, 15, 13, 5, 0, berlin),
+			),
+			New(
+				time.Date(2020, 9, 26, 14, 0, 5, 0, berlin),
+				time.Date(2020, 9, 26, 14, 7, 5, 0, berlin),
+			),
+		},
+	},
 }
 
-func TestMoreThanTwoIntersections(t *testing.T) {
+func TestIntersections(t *testing.T) {
 	for _, tt := range intersectionTests {
 		t.Log(tt.description)
 		if !reflect.DeepEqual(tt.intersections, tt.spans.Intersection()) {
