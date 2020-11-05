@@ -48,6 +48,7 @@ func filter(spans Spans, filterFunc func(Span) bool) Spans {
 	return filtered
 }
 
+// getMax gets the latest of two timestamps, returning the latter if they are equal
 func getMax(a, b time.Time) time.Time {
 	if a.After(b) {
 		return a
@@ -56,6 +57,7 @@ func getMax(a, b time.Time) time.Time {
 	return b
 }
 
+// getMax gets the earliest of two timestamps, returning the latter if they are equal
 func getMin(a, b time.Time) time.Time {
 	if a.Before(b) {
 		return a
@@ -153,73 +155,17 @@ func WithoutWithHandler(a, b Span, handlerFunc WithoutHandlerFunc) Spans {
 	return handlerFunc(a, b, s)
 }
 
-// Within returns if b is completly in a
+// Within returns if b is completely in a
 // Same instants of start or end are considered within.
 func Within(a, b Span) bool {
 	return ((a.Start().Before(b.Start())) || a.Start().Equal(b.Start())) &&
 		((a.End().After(b.End())) || a.End().Equal(b.End()))
 }
 
-// Returns true if two spans are side by side
-func contiguous(a, b Span) bool {
-	return a.End().Equal(b.Start()) || b.End().Equal(a.Start())
-}
-
 // Returns true if two spans overlap
 func overlap(a, b Span) bool {
 	return a.Start().Before(b.End()) && b.Start().Before(a.End())
 }
-
-// // UnionWithHandler returns a list of Spans representing the union of all of the spans.
-// // For example, given a list [A,B] where A and B overlap, a list [C] would be returned, with the span C spanning
-// // both A and B. The provided handler is passed the source and destination spans, and the currently merged empty span.
-// func (s Spans) UnionWithHandler(unionHandlerFunc UnionHandlerFunc) Spans {
-//
-// 	if len(s) < 2 {
-// 		return s
-// 	}
-//
-// 	var sorted Spans
-// 	sorted = append(sorted, s...)
-// 	sort.Stable(ByStart(sorted))
-//
-// 	result := Spans{sorted[0]}
-//
-// 	for _, b := range sorted[1:] {
-// 		// A: current span in merged array; B: current span in sorted array
-// 		// If B overlaps with A, it can be merged with A.
-// 		a := result[len(result)-1]
-// 		if overlap(a, b) || contiguous(a, b) {
-//
-// 			spanStart := getMin(EndPoint{a.Start(), a.StartType()}, EndPoint{b.Start(), b.StartType()})
-// 			spanEnd := getMax(EndPoint{a.End(), a.EndType()}, EndPoint{b.End(), b.EndType()})
-//
-// 			if a.Start().Equal(b.Start()) {
-// 				spanStart.Type = getLoosestIntervalType(a.StartType(), b.StartType())
-// 			}
-// 			if a.End().Equal(b.End()) {
-// 				spanEnd.Type = getLoosestIntervalType(a.EndType(), b.EndType())
-// 			}
-//
-// 			span := NewWithTypes(spanStart.Element, spanEnd.Element, spanStart.Type, spanEnd.Type)
-// 			result[len(result)-1] = unionHandlerFunc(a, b, span)
-//
-// 			continue
-// 		}
-// 		result = append(result, b)
-// 	}
-//
-// 	return result
-// }
-//
-// // Union returns a list of Spans representing the union of all of the spans.
-// // For example, given a list [A,B] where A and B overlap, a list [C] would be returned, with the span C spanning
-// // both A and B.
-// func (s Spans) Union() Spans {
-// 	return s.UnionWithHandler(func(mergeInto, mergeFrom, mergeSpan Span) Span {
-// 		return mergeSpan
-// 	})
-// }
 
 // IntersectionWithHandler returns a list of Spans representing the overlaps between the contained spans.
 // For example, given a list [A,B] where A and B overlap, a list [C] would be returned, with the span C covering
