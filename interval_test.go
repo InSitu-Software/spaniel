@@ -670,3 +670,68 @@ func TestWithout(t *testing.T) {
 		}
 	}
 }
+
+var withinTests = []struct {
+	description string
+	spanA       Span
+	spanB       Span
+	expected    bool
+}{
+	{
+		"is within",
+		New(
+			time.Date(2020, 9, 26, 11, 27, 0, 0, berlin),
+			time.Date(2020, 9, 26, 15, 33, 38, 0, berlin),
+		),
+		New(
+			time.Date(2020, 9, 26, 12, 27, 0, 0, berlin),
+			time.Date(2020, 9, 26, 14, 33, 38, 0, berlin),
+		),
+		true,
+	},
+	{
+		"is identical",
+		New(
+			time.Date(2020, 9, 26, 11, 27, 0, 0, berlin),
+			time.Date(2020, 9, 26, 15, 33, 38, 0, berlin),
+		),
+		New(
+			time.Date(2020, 9, 26, 11, 27, 0, 0, berlin),
+			time.Date(2020, 9, 26, 15, 33, 38, 0, berlin),
+		),
+		true,
+	},
+	{
+		"start outside",
+		New(
+			time.Date(2020, 9, 26, 11, 27, 0, 0, berlin),
+			time.Date(2020, 9, 26, 15, 33, 38, 0, berlin),
+		),
+		New(
+			time.Date(2020, 9, 26, 11, 26, 0, 0, berlin),
+			time.Date(2020, 9, 26, 13, 33, 38, 0, berlin),
+		),
+		false,
+	},
+	{
+		"end outside",
+		New(
+			time.Date(2020, 9, 26, 11, 27, 0, 0, berlin),
+			time.Date(2020, 9, 26, 15, 33, 38, 0, berlin),
+		),
+		New(
+			time.Date(2020, 9, 26, 12, 27, 0, 0, berlin),
+			time.Date(2020, 9, 26, 15, 34, 38, 0, berlin),
+		),
+		false,
+	},
+}
+
+func TestWithin(t *testing.T) {
+	for _, tt := range withinTests {
+		t.Log(tt.description)
+		if Within(tt.spanA, tt.spanB) != tt.expected {
+			t.Error("Expected ", tt.expected, ", got ", !tt.expected)
+		}
+	}
+}
