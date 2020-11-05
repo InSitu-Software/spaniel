@@ -84,10 +84,12 @@ func Without(a, b Span) Spans {
 	baseEnd := a.End()
 	interStart := b.Start()
 	interEnd := b.End()
-	{
+
+	// We do not want to split a Span with a no-duration time span
+	if IsInstant(b) {
+		residues = append(residues, a)
+		return residues
 	}
-	// ----++++++----
-	// ------++------
 
 	switch {
 	case baseStart.Before(interStart) && baseEnd.After(interEnd):

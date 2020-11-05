@@ -399,6 +399,34 @@ var withoutTests = []struct {
 	expected    Spans
 }{
 	{
+		"no spans",
+		Spans{},
+		New(
+			time.Date(2020, 9, 26, 13, 6, 5, 0, berlin),
+			time.Date(2020, 9, 26, 15, 13, 5, 0, berlin),
+		),
+		Spans{},
+	},
+	{
+		"span interrupted by an start=end span",
+		Spans{
+			New(
+				time.Date(2020, 9, 26, 13, 6, 5, 0, berlin),
+				time.Date(2020, 9, 26, 15, 13, 5, 0, berlin),
+			),
+		},
+		New(
+			time.Date(2020, 9, 26, 14, 6, 5, 0, berlin),
+			time.Date(2020, 9, 26, 14, 6, 5, 0, berlin),
+		),
+		Spans{
+			New(
+				time.Date(2020, 9, 26, 13, 6, 5, 0, berlin),
+				time.Date(2020, 9, 26, 15, 13, 5, 0, berlin),
+			),
+		},
+	},
+	{
 		"one span overlapping end",
 		Spans{
 			New(
@@ -456,7 +484,7 @@ var withoutTests = []struct {
 		},
 	},
 	{
-		"one span complete overlap = nil",
+		"one span complete overlap = empty spans",
 		Spans{
 			New(
 				time.Date(2020, 9, 26, 9, 4, 5, 0, berlin),
@@ -466,6 +494,20 @@ var withoutTests = []struct {
 		New(
 			time.Date(2020, 9, 26, 8, 6, 5, 0, berlin),
 			time.Date(2020, 9, 26, 15, 13, 5, 0, berlin),
+		),
+		Spans{},
+	},
+	{
+		"one span identical overlap = empty span",
+		Spans{
+			New(
+				time.Date(2020, 9, 26, 9, 4, 5, 0, berlin),
+				time.Date(2020, 9, 26, 12, 13, 5, 0, berlin),
+			),
+		},
+		New(
+			time.Date(2020, 9, 26, 9, 4, 5, 0, berlin),
+			time.Date(2020, 9, 26, 12, 13, 5, 0, berlin),
 		),
 		Spans{},
 	},
