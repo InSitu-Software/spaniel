@@ -735,3 +735,45 @@ func TestWithin(t *testing.T) {
 		}
 	}
 }
+
+var testDurations = []struct {
+	description string
+	spans       Spans
+	expected    time.Duration
+}{
+	{
+		"single Span",
+		Spans{
+			New(
+				time.Date(2020, 9, 26, 11, 27, 0, 0, berlin),
+				time.Date(2020, 9, 26, 13, 12, 45, 0, berlin),
+			),
+		},
+		6345000000000,
+	},
+	{
+		"two Spans overlapping ",
+		Spans{
+			New(
+				time.Date(2020, 9, 26, 11, 27, 0, 0, berlin),
+				time.Date(2020, 9, 26, 13, 12, 45, 0, berlin),
+			),
+			New(
+				time.Date(2020, 9, 26, 12, 12, 36, 0, berlin),
+				time.Date(2020, 9, 26, 14, 23, 56, 0, berlin),
+			),
+		},
+		14225000000000,
+	},
+}
+
+func TestSpans_Duration(t *testing.T) {
+	for _, tt := range testDurations {
+		t.Log(tt.description)
+		duration := tt.spans.Duration()
+		if tt.expected != duration {
+			t.Error("Expected ", tt.expected, " Received ", duration)
+			t.Fail()
+		}
+	}
+}

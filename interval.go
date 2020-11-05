@@ -263,6 +263,7 @@ func (s Spans) WithoutWithHandler(b Span, handlerFunc WithoutHandlerFunc) Spans 
 	return o
 }
 
+//Duration sums up the duration of all given Spans
 func (s Spans) Duration() time.Duration {
 	var d time.Duration
 
