@@ -771,7 +771,7 @@ func TestSpans_Duration(t *testing.T) {
 	for _, tt := range testDurations {
 		t.Log(tt.description)
 		duration := tt.spans.Duration()
-		if tt.expected != duration {
+		if tt.expected == duration {
 			t.Error("Expected ", tt.expected, " Received ", duration)
 			t.Fail()
 		}
