@@ -17,4 +17,5 @@ jobs:
 
 workflows:
   jobs:
-    - test_go
+    - test_go:
+        context: Insitu_AWS
