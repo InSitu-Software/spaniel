@@ -1,0 +1,22 @@
+version: 2.1
+
+jobs:
+  test_go:
+    docker:
+      - image: golang:1.12-alpine
+    steps:
+      - run: apk --no-cache add git go
+      - checkout
+      - run:
+          command: |
+            git config --global url."https://gitcibot:${GITCIBOT_TOKEN}@github.com/".insteadOf "https://github.com/"
+            export GONOPROXY="*.insitu.de,github.com/InSitu-Software/*"
+            export GONOSUMDB="*.insitu.de,github.com/InSitu-Software/*"
+            export GOPRIVATE="*.insitu.de,github.com/InSitu-Software/*"
+            go test -v
+
+workflows:
+  test:
+    jobs:
+      - test_go:
+          context: Insitu_AWS
